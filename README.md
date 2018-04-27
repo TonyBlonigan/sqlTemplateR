@@ -1,6 +1,3 @@
-# sqlTemplateR
-Use SQL Template files to programmatically generate SQL
-
 ---
 title: "SQLTemplateR"
 author: "Tony Blonigan"
@@ -16,6 +13,8 @@ vignette: >
 knitr::opts_chunk$set(warning=FALSE, message=FALSE, eval=FALSE)
 ```
 
+# sqlTemplateR
+R interface to programmatically edit sqlTemplate files
 
 ## Motivation
 
