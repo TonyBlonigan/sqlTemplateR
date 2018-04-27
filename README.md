@@ -34,10 +34,10 @@ Normally, you would write a query like this:
 SELECT cust.CUST_KEY,
 prod.GLBL_BSIC_COMM_DESC,
 SUM(pos.SLS_AMT) SLS_AMT
-FROM DBSAAD31.POS_FACT pos
-INNER JOIN DBSAAD31.CUST_DIM cust
+FROM SALES pos
+INNER JOIN CUSTOMER cust
     ON pos.CUST_KEY = NVL(cust.S_DUNS_NBR, cust.CUST_KEY)
-INNER JOIN DBSAAD31.PROD_DIM prod
+INNER JOIN PRODUCT prod
     ON pos.PROD_KEY = prod.PROD_KEY
 WHERE CAST(pos.SLS_YR || '-' || LPAD(CAST(pos.SLS_MNTH_INT AS CHAR), 2, '0') || '-' || '01' AS DATE) > ADD_MONTHS(DATE, - 14)  
 GROUP BY cust.CUST_KEY,
@@ -59,10 +59,10 @@ SELECT cust.CUST_KEY
 --,prod.MMM_ID_NBR
 --,prod.ITEM_DESC
 ,SUM(pos.SLS_AMT) SLS_AMT
-FROM DBSAAD31.POS_FACT pos
-INNER JOIN DBSAAD31.CUST_DIM cust
+FROM SALES pos
+INNER JOIN CUSTOMER cust
     ON pos.CUST_KEY = NVL(cust.S_DUNS_NBR, cust.CUST_KEY)
-INNER JOIN DBSAAD31.PROD_DIM prod
+INNER JOIN PRODUCT prod
     ON pos.PROD_KEY = prod.PROD_KEY
 WHERE CAST(pos.SLS_YR || '-' || LPAD(CAST(pos.SLS_MNTH_INT AS CHAR), 2, '0') || '-' || '01' AS DATE) > ADD_MONTHS(DATE, - 14)  
 GROUP BY cust.CUST_KEY
@@ -78,25 +78,25 @@ HAVING SUM(pos.SLS_AMT) > 0
 Notice the changes:
 
 1. Commented out column names have been added has been added to the SELECT and GROUP BY sections, for each level of the product hierarchy
-2. Commas used to separate column names have been moved to the start of each line (SQL doesnít care about lines or spaces, just that fileds are comma separated)
+2. Commas used to separate column names have been moved to the start of each line (SQL doesn‚Äôt care about lines or spaces, just that fileds are comma separated)
 
 Now, we can activate any of the commeneted out fields from an SQL template file, like this:
 
 ```{r activateRun}
 # setup odbc connection
-mmmConnect()
+odbc = RODBC::odbcConnect(dsn = 'YOUR_DSN_NAME')
 
 # setup vector with name(s) of column(s) to activate
 colsToActivate = c('prod.GLBL_BSIC_COMM_DESC','prod.ITEM_DESC')
 
 # build and execute the qurey
-sqlTemplateExecute(sqlTemplate = 'path/to/your/sqlTemplate.sql', activate = colsToActivate)
+sqlTemplateExecute(sqlTemplate = 'path/to/your/sqlTemplate.sql', activate = colsToActivate,
+                   connectVar = odbc)
 # NOTE: this executes the query against the variable containing your odbc connection.
-# The default connection is .mmmConnection, which we created by running mmmConnect()
 
 ```
 
-Before executing the query, sqlTemplateExecute removes '- ñ,' any time it is found infront of one of the columns listed under the activate parameter. So the query that would be executed would look like this:
+Before executing the query, sqlTemplateExecute removes '- ‚Äì,' any time it is found infront of one of the columns listed under the activate parameter. So the query that would be executed would look like this:
 
 ```{sql activateResult}
 SELECT cust.CUST_KEY
@@ -106,10 +106,10 @@ SELECT cust.CUST_KEY
 --,prod.MMM_ID_NBR
 ,prod.ITEM_DESC
 ,SUM(pos.SLS_AMT) SLS_AMT
-FROM DBSAAD31.POS_FACT pos
-INNER JOIN DBSAAD31.CUST_DIM cust
+FROM SALES pos
+INNER JOIN CUSTOMER cust
     ON pos.CUST_KEY = NVL(cust.S_DUNS_NBR, cust.CUST_KEY)
-INNER JOIN DBSAAD31.PROD_DIM prod
+INNER JOIN PRODUCT prod
     ON pos.PROD_KEY = prod.PROD_KEY
 WHERE CAST(pos.SLS_YR || '-' || LPAD(CAST(pos.SLS_MNTH_INT AS CHAR), 2, '0') || '-' || '01' AS DATE) > ADD_MONTHS(DATE, - 14)  
 GROUP BY cust.CUST_KEY
@@ -126,7 +126,7 @@ Tip: If there are columns that should not be used together, build some sort of v
 
 ### Tags
 
-While column activation is simple, there are other common changes that are better accomplished with tags. A tag is any string between these guys: ì<>.î Here are a few examples: 
+While column activation is simple, there are other common changes that are better accomplished with tags. A tag is any string between these guys: ‚Äú<>.‚Äù Here are a few examples: 
 
 * \<duns_nbr\> 
 * \<corpDivCd\> 
@@ -142,10 +142,10 @@ SELECT cust.CUST_KEY
 --,prod.MMM_ID_NBR
 --,prod.ITEM_DESC
 ,SUM(pos.SLS_AMT) SLS_AMT
-FROM DBSAAD31.POS_FACT pos
-INNER JOIN DBSAAD31.CUST_DIM cust
+FROM SALES pos
+INNER JOIN CUSTOMER cust
     ON pos.CUST_KEY = NVL(cust.S_DUNS_NBR, cust.CUST_KEY)
-INNER JOIN DBSAAD31.PROD_DIM prod
+INNER JOIN PRODUCT prod
     ON pos.PROD_KEY = prod.PROD_KEY
 WHERE CAST(pos.SLS_YR || '-' || LPAD(CAST(pos.SLS_MNTH_INT AS CHAR), 2, '0') || '-' || '01' AS DATE) > ADD_MONTHS(DATE, - 14)  
 GROUP BY cust.CUST_KEY
@@ -167,12 +167,12 @@ tags = list(min_SLS_AMT = 900)
 # execute the query
 sqlTemplateExecute(sqlTemplate = 'path/to/your/sqlTemplate.sql', 
                    activate = colsToActivate,
-                   tagMap = tags)
+                   tagMap = tags, connectVar = odbc)
 ```
 
 Each tag is replaced with the value associated with its name in the tagMap arg list. The tags are case sensitive, so be careful.
 
-Also, if a tag is after a "- ñ" comment, the "- ñ" is removed before replacing the tag with its tagMap value. Here is the query that gets executed for the example above:
+Also, if a tag is after a "- ‚Äì" comment, the "- ‚Äì" is removed before replacing the tag with its tagMap value. Here is the query that gets executed for the example above:
 
 ```{sql tagResults}
 SELECT cust.CUST_KEY
@@ -182,10 +182,10 @@ SELECT cust.CUST_KEY
 --,prod.MMM_ID_NBR
 ,prod.ITEM_DESC
 ,SUM(pos.SLS_AMT) SLS_AMT
-FROM DBSAAD31.POS_FACT pos
-INNER JOIN DBSAAD31.CUST_DIM cust
+FROM SALES pos
+INNER JOIN CUSTOMER cust
     ON pos.CUST_KEY = NVL(cust.S_DUNS_NBR, cust.CUST_KEY)
-INNER JOIN DBSAAD31.PROD_DIM prod
+INNER JOIN PRODUCT prod
     ON pos.PROD_KEY = prod.PROD_KEY
 WHERE CAST(pos.SLS_YR || '-' || LPAD(CAST(pos.SLS_MNTH_INT AS CHAR), 2, '0') || '-' || '01' AS DATE) > ADD_MONTHS(DATE, - 14)  
 GROUP BY cust.CUST_KEY
