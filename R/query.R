@@ -38,25 +38,10 @@ sqlTemplateExecute = function(sqlTemplate, activate = NULL, tagMap = NULL,
                               stringsAsFactors = TRUE, connectVar,
                               debug = FALSE) {
 
-  # add special security tags defined in data-raw folder
-  if (!exists('tagMap')) {
-    tagMap = list()
-  }
-
-  # add security tags
-  tagMap$security_header = sqlTemplateR::security_header
-
-  tagMap$security_filter = sqlTemplateR::security_filter
-
   # generate sql
   sql = generateSQL(sqlTemplate = sqlTemplate,
                     activate = activate,
                     tagMap = tagMap)
-
-  # populate the tag in the security header
-  if (!is.null(tagMap[['user_id']])) {
-    sql = sub('--<user_id>|<user_id>', tagMap$user_id, sql)
-  }
 
   # print for debug
   if (debug) {
