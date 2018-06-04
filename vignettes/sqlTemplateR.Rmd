@@ -30,17 +30,17 @@ Normally, you would write a query like this:
 
 ```{sql stdSQL}
 SELECT cust.CUST_KEY,
-prod.GLBL_BSIC_COMM_DESC,
-SUM(pos.SLS_AMT) SLS_AMT
+prod.HIER_LVL_ONE,
+SUM(sls.SLS_AMT) SLS_AMT
 FROM SALES pos
 INNER JOIN CUSTOMER cust
-    ON pos.CUST_KEY = NVL(cust.S_DUNS_NBR, cust.CUST_KEY)
+    ON sls.CUST_KEY = cust.CUST_KEY
 INNER JOIN PRODUCT prod
-    ON pos.PROD_KEY = prod.PROD_KEY
-WHERE CAST(pos.SLS_YR || '-' || LPAD(CAST(pos.SLS_MNTH_INT AS CHAR), 2, '0') || '-' || '01' AS DATE) > ADD_MONTHS(DATE, - 14)  
+    ON sls.PROD_KEY = prod.PROD_KEY
+WHERE CAST(sls.SLS_YR || '-' || LPAD(CAST(sls.SLS_MNTH_INT AS CHAR), 2, '0') || '-' || '01' AS DATE) > ADD_MONTHS(DATE, - 14)  
 GROUP BY cust.CUST_KEY,
-prod.GLBL_BSIC_COMM_DESC,
-HAVING SUM(pos.SLS_AMT) > 0
+prod.HIER_LVL_ONE,
+HAVING SUM(sls.SLS_AMT) > 0
 ```
 
 But what if you wanted to be able to run the same analysis at different levels of the product hierarchy? You could create several versions of the same query, or hack out some text parsing that would update the columns and grouping. Or you could make some minor changes to the .sql file and use activation options.
@@ -51,26 +51,26 @@ Here is the simple query above could be transformed into a query template that c
 
 ```{sql activationSQL}
 SELECT cust.CUST_KEY
---,prod.GLBL_BSIC_COMM_DESC
---,prod.COMM_CLASS_DESC
---,prod.GLBL_SLS_DESC
---,prod.MMM_ID_NBR
+--,prod.HIER_LVL_ONE
+--,prod.HIER_LVL_TWO
+--,prod.HIER_LVL_THREE
+--,prod.SKU
 --,prod.ITEM_DESC
-,SUM(pos.SLS_AMT) SLS_AMT
+,SUM(sls.SLS_AMT) SLS_AMT
 FROM SALES pos
 INNER JOIN CUSTOMER cust
-    ON pos.CUST_KEY = NVL(cust.S_DUNS_NBR, cust.CUST_KEY)
+    ON sls.CUST_KEY = cust.CUST_KEY
 INNER JOIN PRODUCT prod
-    ON pos.PROD_KEY = prod.PROD_KEY
-WHERE CAST(pos.SLS_YR || '-' || LPAD(CAST(pos.SLS_MNTH_INT AS CHAR), 2, '0') || '-' || '01' AS DATE) > ADD_MONTHS(DATE, - 14)  
+    ON sls.PROD_KEY = prod.PROD_KEY
+WHERE CAST(sls.SLS_YR || '-' || LPAD(CAST(sls.SLS_MNTH_INT AS CHAR), 2, '0') || '-' || '01' AS DATE) > ADD_MONTHS(DATE, - 14)  
 GROUP BY cust.CUST_KEY
---,prod.GLBL_BSIC_COMM_DESC
---,prod.COMM_CLASS_DESC
---,prod.GLBL_SLS_DESC
---,prod.MMM_ID_NBR
+--,prod.HIER_LVL_ONE
+--,prod.HIER_LVL_TWO
+--,prod.HIER_LVL_THREE
+--,prod.SKU
 --,prod.ITEM_DESC
-,prod.GLBL_BSIC_COMM_DESC
-HAVING SUM(pos.SLS_AMT) > 0
+,prod.HIER_LVL_ONE
+HAVING SUM(sls.SLS_AMT) > 0
 ```
 
 Notice the changes:
@@ -85,7 +85,7 @@ Now, we can activate any of the commeneted out fields from an SQL template file,
 odbc = RODBC::odbcConnect(dsn = 'YOUR_DSN_NAME')
 
 # setup vector with name(s) of column(s) to activate
-colsToActivate = c('prod.GLBL_BSIC_COMM_DESC','prod.ITEM_DESC')
+colsToActivate = c('prod.HIER_LVL_ONE','prod.ITEM_DESC')
 
 # build and execute the qurey
 sqlTemplateExecute(sqlTemplate = 'path/to/your/sqlTemplate.sql', activate = colsToActivate,
@@ -98,26 +98,26 @@ Before executing the query, sqlTemplateExecute removes '- –,' any time it is f
 
 ```{sql activateResult}
 SELECT cust.CUST_KEY
-,prod.GLBL_BSIC_COMM_DESC
---,prod.COMM_CLASS_DESC
---,prod.GLBL_SLS_DESC
---,prod.MMM_ID_NBR
+,prod.HIER_LVL_ONE
+--,prod.HIER_LVL_TWO
+--,prod.HIER_LVL_THREE
+--,prod.SKU
 ,prod.ITEM_DESC
-,SUM(pos.SLS_AMT) SLS_AMT
+,SUM(sls.SLS_AMT) SLS_AMT
 FROM SALES pos
 INNER JOIN CUSTOMER cust
-    ON pos.CUST_KEY = NVL(cust.S_DUNS_NBR, cust.CUST_KEY)
+    ON sls.CUST_KEY = cust.CUST_KEY
 INNER JOIN PRODUCT prod
-    ON pos.PROD_KEY = prod.PROD_KEY
-WHERE CAST(pos.SLS_YR || '-' || LPAD(CAST(pos.SLS_MNTH_INT AS CHAR), 2, '0') || '-' || '01' AS DATE) > ADD_MONTHS(DATE, - 14)  
+    ON sls.PROD_KEY = prod.PROD_KEY
+WHERE CAST(sls.SLS_YR || '-' || LPAD(CAST(sls.SLS_MNTH_INT AS CHAR), 2, '0') || '-' || '01' AS DATE) > ADD_MONTHS(DATE, - 14)  
 GROUP BY cust.CUST_KEY
-,prod.GLBL_BSIC_COMM_DESC
---,prod.COMM_CLASS_DESC
---,prod.GLBL_SLS_DESC
---,prod.MMM_ID_NBR
+,prod.HIER_LVL_ONE
+--,prod.HIER_LVL_TWO
+--,prod.HIER_LVL_THREE
+--,prod.SKU
 ,prod.ITEM_DESC
-,prod.GLBL_BSIC_COMM_DESC
-HAVING SUM(pos.SLS_AMT) > 0
+,prod.HIER_LVL_ONE
+HAVING SUM(sls.SLS_AMT) > 0
 ```
 
 Tip: If there are columns that should not be used together, build some sort of validation process into the step where you define the columns to activate to make sure they are not included in the same query.
@@ -134,26 +134,26 @@ If you wanted to run the query above, but compare outcomes at several minimum SL
 
 ```{sql tagExample}
 SELECT cust.CUST_KEY
---,prod.GLBL_BSIC_COMM_DESC
---,prod.COMM_CLASS_DESC
---,prod.GLBL_SLS_DESC
---,prod.MMM_ID_NBR
+--,prod.HIER_LVL_ONE
+--,prod.HIER_LVL_TWO
+--,prod.HIER_LVL_THREE
+--,prod.SKU
 --,prod.ITEM_DESC
-,SUM(pos.SLS_AMT) SLS_AMT
+,SUM(sls.SLS_AMT) SLS_AMT
 FROM SALES pos
 INNER JOIN CUSTOMER cust
-    ON pos.CUST_KEY = NVL(cust.S_DUNS_NBR, cust.CUST_KEY)
+    ON sls.CUST_KEY = cust.CUST_KEY
 INNER JOIN PRODUCT prod
-    ON pos.PROD_KEY = prod.PROD_KEY
-WHERE CAST(pos.SLS_YR || '-' || LPAD(CAST(pos.SLS_MNTH_INT AS CHAR), 2, '0') || '-' || '01' AS DATE) > ADD_MONTHS(DATE, - 14)  
+    ON sls.PROD_KEY = prod.PROD_KEY
+WHERE CAST(sls.SLS_YR || '-' || LPAD(CAST(sls.SLS_MNTH_INT AS CHAR), 2, '0') || '-' || '01' AS DATE) > ADD_MONTHS(DATE, - 14)  
 GROUP BY cust.CUST_KEY
---,prod.GLBL_BSIC_COMM_DESC
---,prod.COMM_CLASS_DESC
---,prod.GLBL_SLS_DESC
---,prod.MMM_ID_NBR
+--,prod.HIER_LVL_ONE
+--,prod.HIER_LVL_TWO
+--,prod.HIER_LVL_THREE
+--,prod.SKU
 --,prod.ITEM_DESC
-,prod.GLBL_BSIC_COMM_DESC
-HAVING SUM(pos.SLS_AMT) > <min_SLS_AMT>
+,prod.HIER_LVL_ONE
+HAVING SUM(sls.SLS_AMT) > <min_SLS_AMT>
 ```
 
 Now, you could use this code to set the minimum sales threasholds:
@@ -174,26 +174,26 @@ Also, if a tag is after a "- –" comment, the "- –" is removed before replaci
 
 ```{sql tagResults}
 SELECT cust.CUST_KEY
-,prod.GLBL_BSIC_COMM_DESC
---,prod.COMM_CLASS_DESC
---,prod.GLBL_SLS_DESC
---,prod.MMM_ID_NBR
+,prod.HIER_LVL_ONE
+--,prod.HIER_LVL_TWO
+--,prod.HIER_LVL_THREE
+--,prod.SKU
 ,prod.ITEM_DESC
-,SUM(pos.SLS_AMT) SLS_AMT
+,SUM(sls.SLS_AMT) SLS_AMT
 FROM SALES pos
 INNER JOIN CUSTOMER cust
-    ON pos.CUST_KEY = NVL(cust.S_DUNS_NBR, cust.CUST_KEY)
+    ON sls.CUST_KEY = cust.CUST_KEY
 INNER JOIN PRODUCT prod
-    ON pos.PROD_KEY = prod.PROD_KEY
-WHERE CAST(pos.SLS_YR || '-' || LPAD(CAST(pos.SLS_MNTH_INT AS CHAR), 2, '0') || '-' || '01' AS DATE) > ADD_MONTHS(DATE, - 14)  
+    ON sls.PROD_KEY = prod.PROD_KEY
+WHERE CAST(sls.SLS_YR || '-' || LPAD(CAST(sls.SLS_MNTH_INT AS CHAR), 2, '0') || '-' || '01' AS DATE) > ADD_MONTHS(DATE, - 14)  
 GROUP BY cust.CUST_KEY
-,prod.GLBL_BSIC_COMM_DESC
---,prod.COMM_CLASS_DESC
---,prod.GLBL_SLS_DESC
---,prod.MMM_ID_NBR
+,prod.HIER_LVL_ONE
+--,prod.HIER_LVL_TWO
+--,prod.HIER_LVL_THREE
+--,prod.SKU
 ,prod.ITEM_DESC
-,prod.GLBL_BSIC_COMM_DESC
-HAVING SUM(pos.SLS_AMT) > 900
+,prod.HIER_LVL_ONE
+HAVING SUM(sls.SLS_AMT) > 900
 ```
 
 ## Parting Thoughts
